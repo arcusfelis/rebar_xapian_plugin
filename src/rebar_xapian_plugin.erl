@@ -6,18 +6,26 @@
 -define(ABORT(Msg, Args), rebar_utils:abort(Msg, Args)).
 
 %% standard rebar hooks
--export([compile/2]).
-
--on_load(set_vars/0).
+-export([preprocess/2]).
 
 
 %%
 %% Plugin API
 %%
 
-compile(Config, AppFile) ->
-    set_vars(),
-    ok.
+
+preprocess(_Config, _AppFile) ->
+    Cwd = rebar_utils:get_cwd(),
+    %% Cwd is "/home/user/erlang/xapian/deps/proper" or 
+    %%        "/home/user/erlang/xapian".
+    CwdList = filename:split(Cwd),
+    case lists:last(CwdList) of
+        "xapian" ->
+            set_vars();
+        _OtherApp ->
+            ok
+    end,
+    {ok, []}.
 
 
 
@@ -34,14 +42,6 @@ set_vars() ->
 
         export_env("XAPIAN_CXXFLAGS", " xapian-config --cxxflags"),
         export_env("XAPIAN_LDFLAGS", " xapian-config --libs"),
-
-        case os:getenv("XAPIAN_BUILD_ID") of
-        false ->
-            {Mega, Secs, _} = os:timestamp(),
-            Timestamp = Mega*1000000 + Secs,
-            os:putenv("XAPIAN_BUILD_ID", [$.|integer_to_list(Timestamp)]);
-        _ -> ok
-        end,
 
 
         case os:getenv("XAPIAN_REBAR_COVER") of
@@ -70,7 +70,7 @@ export_env(Name, Cmd, FormatFn) ->
 	case os:getenv(Name) of
 	false ->
 		{0, Value} = eunit_lib:command(Cmd),
-		os:putenv(Name, FormatFn(Value)),
+		os:putenv(Name, FormatFn(remove_new_string(Value))),
 		ok;
 	_ -> ok
 	end.
@@ -82,3 +82,5 @@ append_env(Prefix, Name, Suffix) ->
         true
 	end.
 
+remove_new_string(Str) ->
+    [C||C <- Str, C =/= $\n].
