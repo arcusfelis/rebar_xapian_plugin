@@ -3,3 +3,4 @@ ebin
 *.dump
 *.trace  
 .eunit
+.emark
